@@ -1,9 +1,11 @@
 import { Boot } from './scenes/Boot';
 import { GameOver } from './scenes/GameOver';
-import { Game as MainGame } from './scenes/Game';
+import { Pipeworks } from './scenes/Pipeworks';
 import { MainMenu } from './scenes/MainMenu';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
+import { Pause } from './scenes/Pause'; // Added Pause scene
+import { Tutorial } from './scenes/Tutorial'; // Added Tutorial scene
 
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -17,7 +19,9 @@ const config: Phaser.Types.Core.GameConfig = {
         Boot,
         Preloader,
         MainMenu,
-        MainGame,
+        Pipeworks,
+        Pause, 
+        Tutorial, // Added Tutorial scene
         GameOver
     ]
 };

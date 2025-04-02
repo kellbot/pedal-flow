@@ -1,14 +1,11 @@
 import { Scene } from 'phaser';
 
-export class Preloader extends Scene
-{
-    constructor ()
-    {
+export class Preloader extends Scene {
+    constructor() {
         super('Preloader');
     }
 
-    init ()
-    {
+    init() {
         //  We loaded this image in our Boot Scene, so we can display it here
         this.add.image(512, 384, 'background');
 
@@ -27,17 +24,23 @@ export class Preloader extends Scene
         });
     }
 
-    preload ()
-    {
+    preload() {
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('assets');
 
         this.load.image('logo', 'logo.png');
         this.load.image('star', 'star.png');
+
+        // Preload the roads2W sprite sheet
+        this.load.spritesheet('roads', 'roads2W.png', {
+            frameWidth: 64, // Width of each frame
+            frameHeight: 64, // Height of each frame
+            startFrame: 0,
+            endFrame: 26 // Total frames (9 columns * 3 rows = 27 frames)
+        });
     }
 
-    create ()
-    {
+    create() {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
 

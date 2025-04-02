@@ -1,228 +1,119 @@
-# Phaser Next.js Template
+**Game Design Document**\
+**Title:** Pedal Flow
 
-This is a Phaser 3 project template that uses the Next.js framework. It includes a bridge for React to Phaser game communication, hot-reloading for quick development workflow and scripts to generate production-ready builds.
+---
 
-### Versions
+### **Overview**
 
-This template has been updated for:
+**Genre:** Turn-Based Puzzle\
+**Platform:** TBD (PC, Mobile, or Console)\
+**Target Audience:** Casual and fitness-focused gamers\
+**Core Mechanic:** Players extend a cycling path using a *Pipe Dream*-style tile placement system while integrating heart rate mechanics for strategic gameplay.
 
-- [Phaser 3.88.2](https://github.com/phaserjs/phaser)
-- [Next.js 14.2.3](https://github.com/vercel/next.js)
-- [TypeScript 5](https://github.com/microsoft/TypeScript)
+---
 
-![screenshot](screenshot.png)
+### **Gameplay Mechanics**
 
-## Requirements
+#### **Core Loop**
 
-[Node.js](https://nodejs.org) is required to install dependencies and run scripts via `npm`.
+1. Players receive a limited selection of road tiles and must place them to extend the cyclist’s path.
+2. The cyclist moves forward automatically once a turn is completed.
+3. The game continues until the cyclist crashes due to an incomplete path.
 
-## Available Commands
+#### **Tiles**
 
-| Command | Description |
-|---------|-------------|
-| `npm install` | Install project dependencies |
-| `npm run dev` | Launch a development web server |
-| `npm run build` | Create a production build in the `dist` folder |
-| `npm run dev-nolog` | Launch a development web server without sending anonymous data (see "About log.js" below) |
-| `npm run build-nolog` | Create a production build in the `dist` folder without sending anonymous data (see "About log.js" below) |
+- Tiles are randomly generated and must be placed strategically.
+- Some tiles allow turns, intersections, or straight paths.
+- Incorrect placements can block future pathing options, increasing difficulty.
 
-## Writing Code
+##### **Description and Properties**
 
-After cloning the repo, run `npm install` from your project directory. Then, you can start the local development server by running `npm run dev`.
+**Tile  Types**
+- Straight
+- Turn
+- Intersection
+- Start
+- End
+- Block
 
-The local development server runs on `http://localhost:8080` by default. Please see the Next.js documentation if you wish to change this, or add SSL support.
+Each tile placed by clicking on a grid space. Tiles always align to the grid.
 
-Once the server is running you can edit any of the files in the `src` folder. Next.js will automatically recompile your code and then reload the browser.
+#### **Heart Rate Integration**
 
-## Template Project Structure
+- **Steady Zone Bonus:** Maintaining a target heart rate for multiple turns provides rewards (extra points, better tiles, power-ups).
+- **Fluctuation Mechanics:** Some obstacles or paths require the player to intentionally increase or decrease their heart rate to clear them.
 
-We have provided a default project structure to get you started. This is as follows:
+#### **Power-Ups (Cooldown-Based, One Active at a Time)**
 
-- `src/pages/_document.tsx` - A basic Next.js component entry point. It is used to define the `<html>` and `<body>` tags and other globally shared UI.
-- `src` - Contains the Next.js client source code.
-- `src/styles/globals.css` - Some simple global CSS rules to help with page layout. You can enable Tailwind CSS here.
-- `src/page/_app.tsx` - The main Next.js component.
-- `src/App.tsx` - Midleware component used to run Phaser in client mode.
-- `src/game/PhaserGame.tsx` - The React component that initializes the Phaser Game and serve like a bridge between React and Phaser.
-- `src/game/EventBus.ts` - A simple event bus to communicate between React and Phaser.
-- `src/game` - Contains the game source code.
-- `src/game/main.tsx` - The main **game** entry point. This contains the game configuration and start the game.
-- `src/game/scenes/` - The Phaser Scenes are in this folder.
-- `public/favicon.png` - The default favicon for the project.
-- `public/assets` - Contains the static assets used by the game.
-## React Bridge
+- **Turbo Precision:** Allows multiple tile placements in one turn.
+- **Slow-Mo Mode:** Temporarily slows gameplay for better planning.
+- **Path Clearer:** Removes a section of the road ahead.
+- **Auto-Path Assist:** Automatically places a few useful tiles.
+- **Tile Swap:** Allows swapping of an upcoming tile.
+- Power-ups are **earned through combos, heart rate goals, or collected on the course** and have cooldown timers.
 
-The `PhaserGame.tsx` component is the bridge between React and Phaser. It initializes the Phaser game and passes events between the two.
+#### **Obstacles & Challenges**
 
-To communicate between React and Phaser, you can use the **EventBus.js** file. This is a simple event bus that allows you to emit and listen for events from both React and Phaser.
+- **Blocked Roads:** Some tiles require a certain heart rate range to activate.
+- **Obstacles:** Players must reach a heart rate goal to place a replacement tile.
+- **Environmental Hazards:** Wind, rough terrain, or detours force creative tile placement.
 
-```js
-// In React
-import { EventBus } from './EventBus';
+---
 
-// Emit an event
-EventBus.emit('event-name', data);
+### **Game Modes**
 
-// In Phaser
-// Listen for an event
-EventBus.on('event-name', (data) => {
-    // Do something with the data
-});
-```
+1. **Endless Ride:** Core survival mode where players must continuously extend the road as difficulty increases.
+2. **Timed Sprint:** Players race against the clock to score as many points as possible.
+3. **Challenge Runs:** Procedurally generated puzzle levels with specific win conditions (e.g., "Survive for 3 minutes").
+4. **Event Levels:** Special time-limited challenges with unique gameplay twists.
 
-In addition to this, the `PhaserGame` component exposes the Phaser game instance along with the most recently active Phaser Scene using React forwardRef.
+---
 
-Once exposed, you can access them like any regular react reference.
+### **Scoring & Leaderboards**
 
-## Phaser Scene Handling
+- **Distance-Based Scoring:** Points are awarded based on how far the player extends the cyclist’s path.
+- **Heart Rate Bonus:** Extra points for maintaining an optimal heart rate.
+- **Combo Multiplier:** Successfully chaining long paths increases the score multiplier.
+- **Leaderboards:** Includes global rankings, friend leaderboards, and personal best tracking.
 
-In Phaser, the Scene is the lifeblood of your game. It is where you sprites, game logic and all of the Phaser systems live. You can also have multiple scenes running at the same time. This template provides a way to obtain the current active scene from React.
+---
 
-You can get the current Phaser Scene from the component event `"current-active-scene"`. In order to do this, you need to emit the event `"current-scene-ready"` from the Phaser Scene class. This event should be emitted when the scene is ready to be used. You can see this done in all of the Scenes in our template.
+### **Tutorial Mode**
 
-**Important**: When you add a new Scene to your game, make sure you expose to React by emitting the `"current-scene-ready"` event via the `EventBus`, like this:
+- **Interactive and Skippable.**
+- Gradually introduces mechanics step-by-step:
+  1. Tile placement basics.
+  2. Cyclist movement rules.
+  3. Heart rate integration and its effects.
+  4. Power-ups and cooldowns.
+  5. Obstacles and strategic decision-making.
 
+---
 
-```ts
-class MyScene extends Phaser.Scene
-{
-    constructor ()
-    {
-        super('MyScene');
-    }
+### **Scenes**
 
-    create ()
-    {
-        // Your Game Objects and logic here
-
-        // At the end of create method:
-        EventBus.emit('current-scene-ready', this);
-    }
-}
-```
-
-You don't have to emit this event if you don't need to access the specific scene from React. Also, you don't have to emit it at the end of `create`, you can emit it at any point. For example, should your Scene be waiting for a network request or API call to complete, it could emit the event once that data is ready.
-
-### React Component Example
-
-Here's an example of how to access Phaser data for use in a React Component:
-
-```ts
-import { useRef } from 'react';
-import { IRefPhaserGame } from "./game/PhaserGame";
-
-// In a parent component
-const ReactComponent = () => {
-
-    const phaserRef = useRef<IRefPhaserGame>(); // you can access to this ref from phaserRef.current
-
-    const onCurrentActiveScene = (scene: Phaser.Scene) => {
-    
-        // This is invoked
-
-    }
-
-    return (
-        ...
-        <PhaserGame ref={phaserRef} currentActiveScene={onCurrentActiveScene} />
-        ...
-    );
-
-}
-```
-
-In the code above, you can get a reference to the current Phaser Game instance and the current Scene by creating a reference with `useRef()` and assign to PhaserGame component.
-
-From this state reference, the game instance is available via `phaserRef.current.game` and the most recently active Scene via `phaserRef.current.scene`.
-
-The `onCurrentActiveScene` callback will also be invoked whenever the the Phaser Scene changes, as long as you emit the event via the EventBus, as outlined above.
-
-## Handling Assets
-
-To load your static games files such as audio files, images, videos, etc place them into the `public/assets` folder. Then you can use this path in the Loader calls within Phaser:
-
-```js
-preload ()
-{
-    //  This is an example of loading a static image
-    //  from the public/assets folder:
-    this.load.image('background', 'assets/bg.png');
-}
-```
-
-When you issue the `npm run build` command, all static assets are automatically copied to the `dist/assets` folder.
-
-## Deploying to Production
-
-After you run the `npm run build` command, your code will be built into a single bundle and saved to the `dist` folder, along with any other assets your project imported, or stored in the public assets folder.
-
-In order to deploy your game, you will need to upload *all* of the contents of the `dist` folder to a public facing web server.
-
-## Customizing the Template
-
-### Next.js
-
-If you want to customize your build, such as adding plugin (i.e. for loading CSS or fonts), you can modify the `next.config.mjs` file for cross-project changes, or you can modify and/or create new configuration files and target them in specific npm tasks inside of `package.json`. Please see the [Next.js documentation](https://nextjs.org/docs) for more information.
-
-## About log.js
-
-If you inspect our node scripts you will see there is a file called `log.js`. This file makes a single silent API call to a domain called `gryzor.co`. This domain is owned by Phaser Studio Inc. The domain name is a homage to one of our favorite retro games.
-
-We send the following 3 pieces of data to this API: The name of the template being used (vue, react, etc). If the build was 'dev' or 'prod' and finally the version of Phaser being used.
-
-At no point is any personal data collected or sent. We don't know about your project files, device, browser or anything else. Feel free to inspect the `log.js` file to confirm this.
-
-Why do we do this? Because being open source means we have no visible metrics about which of our templates are being used. We work hard to maintain a large and diverse set of templates for Phaser developers and this is our small anonymous way to determine if that work is actually paying off, or not. In short, it helps us ensure we're building the tools for you.
-
-However, if you don't want to send any data, you can use these commands instead:
-
-Dev:
-
-```bash
-npm run dev-nolog
-```
-
-Build:
-
-```bash
-npm run build-nolog
-```
-
-Or, to disable the log entirely, simply delete the file `log.js` and remove the call to it in the `scripts` section of `package.json`:
-
-Before:
-
-```json
-"scripts": {
-    "dev": "node log.js dev & dev-template-script",
-    "build": "node log.js build & build-template-script"
-},
-```
-
-After:
-
-```json
-"scripts": {
-    "dev": "dev-template-script",
-    "build": "build-template-script"
-},
-```
-
-Either of these will stop `log.js` from running. If you do decide to do this, please could you at least join our Discord and tell us which template you're using! Or send us a quick email. Either will be super-helpful, thank you.
-
-## Join the Phaser Community!
-
-We love to see what developers like you create with Phaser! It really motivates us to keep improving. So please join our community and show-off your work 😄
-
-**Visit:** The [Phaser website](https://phaser.io) and follow on [Phaser Twitter](https://twitter.com/phaser_)<br />
-**Play:** Some of the amazing games [#madewithphaser](https://twitter.com/search?q=%23madewithphaser&src=typed_query&f=live)<br />
-**Learn:** [API Docs](https://newdocs.phaser.io), [Support Forum](https://phaser.discourse.group/) and [StackOverflow](https://stackoverflow.com/questions/tagged/phaser-framework)<br />
-**Discord:** Join us on [Discord](https://discord.gg/phaser)<br />
-**Code:** 2000+ [Examples](https://labs.phaser.io)<br />
-**Read:** The [Phaser World](https://phaser.io/community/newsletter) Newsletter<br />
-
-Created by [Phaser Studio](mailto:support@phaser.io). Powered by coffee, anime, pixels and love.
-
-The Phaser logo and characters are &copy; 2011 - 2024 Phaser Studio Inc.
-
-All rights reserved.
+- **Boot Scene**
+- **Main Menu**
+  - Mode Selection
+    - Endless Ride
+    - Timed Sprint
+    - Challenge Run
+    - Event Levels
+- **Tutorial**
+- **Gameplay**
+      - Rectangular Play Area which consists of a 10 x 7 grid of empty squares
+      - Preview area showing the next 5 tiles
+      - Score Display
+      - Open space to show available boosts and their timeouts
+- **Game Over**
+- **Pause**
+
+
+### **Next Steps**
+
+1. Prototype core gameplay loop with tile placement and basic pathing.
+2. Implement heart rate integration and balancing.
+3. Develop power-ups and cooldown mechanics.
+4. Playtest different game modes and refine difficulty scaling.
+
+---
