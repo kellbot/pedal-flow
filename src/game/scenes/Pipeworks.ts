@@ -82,7 +82,7 @@ export class Pipeworks extends Scene {
         this.scoreText = this.add.text(16, 16, 'Score: 0', fontSettings);
 
         // Add Countdown text
-        this.countdown = 30; // Start at 30 seconds
+        this.countdown = 10; // Start at 30 seconds
         this.countdownText = this.add.text(16, 56, `Time: ${this.countdown}`, fontSettings);
 
         // Start the countdown timer
@@ -100,7 +100,7 @@ export class Pipeworks extends Scene {
 
     generateTileQueue() {
         while (this.tileQueue.length < 5) {
-            const tileTypes: TileType[] = ['straight', 'turn', 'tee', 'crossed'];
+            const tileTypes: TileType[] = ['straight', 'turn', 'crossed'];
             const randomType = tileTypes[Math.floor(Math.random() * tileTypes.length)];
             const randomOrientation: Orientation = [0, 90, 180, 270][Math.floor(Math.random() * 4)] as Orientation;
             this.tileQueue.push({ type: randomType, orientation: randomOrientation });
@@ -131,8 +131,93 @@ export class Pipeworks extends Scene {
     }
 
     startOoze() {
-        console.log('Ooze started!'); // Placeholder logic
-        // Add your actual logic here
+        console.log('Ooze started!');
+
+        // Find the start tile
+        const startTile = this.children.getAll().find(
+            (child) => child instanceof Tile && (child as Tile).type === 'start'
+        ) as Tile;
+
+        if (!startTile) {
+            console.error('Start tile not found!');
+            return;
+        }
+
+        // Create a graphics object for the ooze
+        const oozeGraphics = this.add.graphics({ lineStyle: { width: 8, color: 0xff0000 } });
+
+        // Start drawing the ooze from the start tile
+        let currentX = startTile.x;
+        let currentY = startTile.y;
+
+        // Recursive function to animate the ooze
+        const animateOoze = (currentTile: Tile, previousDirection: 'top' | 'right' | 'bottom' | 'left' | null) => {
+            console.log("Animating ooze from tile at:", currentTile.x, currentTile.y, "with previous direction:", previousDirection);
+            const edges = Tile.TILE_EDGES[currentTile.type][currentTile.orientation];
+
+            // Determine the next direction based on the open edges
+            const directions = ['top', 'right', 'bottom', 'left'] as const;
+            const oppositeDirection: Record<typeof directions[number], typeof directions[number]> = {
+                top: 'bottom',
+                right: 'left',
+                bottom: 'top',
+                left: 'right',
+            };
+
+            for (const direction of directions) {
+                if (edges[direction] && (!previousDirection || direction !== oppositeDirection[previousDirection])) {
+                    // Calculate the next tile position
+                    let nextX = currentTile.x;
+                    let nextY = currentTile.y;
+
+                    if (direction === 'top') nextY -= 64;
+                    if (direction === 'right') nextX += 64;
+                    if (direction === 'bottom') nextY += 64;
+                    if (direction === 'left') nextX -= 64;
+
+                    // Find the next tile
+                    const nextTile = this.children.getAll().find(
+                        (child) =>
+                            child instanceof Tile &&
+                            child.x === nextX &&
+                            child.y === nextY
+                    ) as Tile;
+
+                    if (nextTile) {
+                        // Animate the line to the next tile
+                        this.tweens.add({
+                            targets: { progress: 0 },
+                            progress: 1,
+                            duration: 500,
+                            onUpdate: (tween) => {
+                                const progress = tween.getValue();
+                                const drawX = currentX + (nextX - currentX) * progress;
+                                const drawY = currentY + (nextY - currentY) * progress;
+
+                                oozeGraphics.clear(); // Clear only the current frame's drawing
+                                oozeGraphics.lineStyle(8, 0xff0000);
+                                oozeGraphics.beginPath();
+                                oozeGraphics.moveTo(currentX, currentY);
+                                oozeGraphics.lineTo(drawX, drawY);
+                                oozeGraphics.strokePath();
+                            },
+                            onComplete: () => {
+                                // Update the current position
+                                currentX = nextX;
+                                currentY = nextY;
+
+                                // Continue to the next tile
+                                animateOoze(nextTile, direction);
+                            },
+                        });
+                    }
+                    break;
+                }
+            }
+        };
+
+        // Start the animation from the start tile
+        animateOoze(startTile, null);
     }
 
     update() {
