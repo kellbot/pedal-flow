@@ -28,10 +28,10 @@ export class Pipeworks extends Scene {
 
         // Background
         this.background = this.add.image(512, 384, 'background');
-        this.background.setAlpha(0.5);
+    
 
         // Grid for tile placement
-        this.grid = this.add.grid(512, 384, 640, 64 * 8, 64, 64, 0x000000, 0, 0xffffff, 0.2);
+        this.grid = this.add.grid(512, 384, 64 * 10, 64 * 8, 64, 64, 0x000000, 0, 0xffffff, 0.2);
         this.grid.setOrigin(0.5);
 
         // Generate initial tile queue
@@ -145,6 +145,8 @@ export class Pipeworks extends Scene {
 
         // Create a graphics object for the ooze
         const oozeGraphics = this.add.graphics({ lineStyle: { width: 8, color: 0xff0000 } });
+        // Ensure the graphics object is always on top
+        this.children.bringToTop(oozeGraphics);
 
         // Start drawing the ooze from the start tile
         let currentX = startTile.x;
@@ -152,7 +154,8 @@ export class Pipeworks extends Scene {
 
         // Recursive function to animate the ooze
         const animateOoze = (currentTile: Tile, previousDirection: 'top' | 'right' | 'bottom' | 'left' | null) => {
-            console.log("Animating ooze from tile at:", currentTile.x, currentTile.y, "with previous direction:", previousDirection);
+            console.log("Animating ooze from", currentTile.type ," tile at:", currentTile.x, currentTile.y, "with previous direction:", previousDirection);
+
             const edges = Tile.TILE_EDGES[currentTile.type][currentTile.orientation];
 
             // Determine the next direction based on the open edges
@@ -163,9 +166,11 @@ export class Pipeworks extends Scene {
                 bottom: 'top',
                 left: 'right',
             };
+            console.log(edges);
 
             for (const direction of directions) {
-                if (edges[direction] && (!previousDirection || direction !== oppositeDirection[previousDirection])) {
+                if (edges[direction] && (!previousDirection || !edges[oppositeDirection[previousDirection]] || direction === oppositeDirection[previousDirection])) {
+                    console.log("Exit direction", direction);
                     // Calculate the next tile position
                     let nextX = currentTile.x;
                     let nextY = currentTile.y;
@@ -183,38 +188,91 @@ export class Pipeworks extends Scene {
                             child.y === nextY
                     ) as Tile;
 
-                    if (nextTile) {
-                        // Animate the line to the next tile
+                    if (previousDirection){
                         this.tweens.add({
                             targets: { progress: 0 },
                             progress: 1,
-                            duration: 500,
-                            onUpdate: (tween) => {
-                                const progress = tween.getValue();
-                                const drawX = currentX + (nextX - currentX) * progress;
-                                const drawY = currentY + (nextY - currentY) * progress;
-
-                                oozeGraphics.clear(); // Clear only the current frame's drawing
-                                oozeGraphics.lineStyle(8, 0xff0000);
-                                oozeGraphics.beginPath();
-                                oozeGraphics.moveTo(currentX, currentY);
-                                oozeGraphics.lineTo(drawX, drawY);
-                                oozeGraphics.strokePath();
-                            },
+                            duration: 3 * 1000,
+                            onUpdate: (tween) => oozeIn(tween, previousDirection, currentTile),
                             onComplete: () => {
-                                // Update the current position
-                                currentX = nextX;
-                                currentY = nextY;
-
-                                // Continue to the next tile
-                                animateOoze(nextTile, direction);
-                            },
+                                this.tweens.add({
+                                    targets: { progress: 0 },
+                                    progress: 1,
+                                    duration: 3 * 1000,
+                                    onUpdate: (tween2) => oozeOut(tween2, direction, currentTile),
+                                    onComplete: () => {
+                                        if (nextTile) {
+                                            animateOoze(nextTile, oppositeDirection[direction]);
+                                        }
+                                    }
+                                })
+                            }
+                            
+                        });
+                    } else {
+                        this.tweens.add({
+                            targets: { progress: 0 },
+                            progress: 1,
+                            duration: 3 * 1000,
+                            onUpdate:(tween3) => oozeOut(tween3, direction, currentTile),
+                            onComplete: () => {
+                                if (nextTile) {
+                                    animateOoze(nextTile, oppositeDirection[direction]);
+                                }
+                            }
+                            
                         });
                     }
+   
                     break;
                 }
             }
         };
+
+        const oozeIn = (tween: Phaser.Tweens.Tween, previousDirection: 'top' | 'right' | 'bottom' | 'left' | null, tile: Tile) => {
+            let inY = tile.y;
+            let inX = tile.x;
+        
+            if (previousDirection === 'top') inY -= 32;
+            if (previousDirection === 'right') inX += 32;
+            if (previousDirection === 'bottom') inY += 32;
+            if (previousDirection === 'left') inX -= 32;
+
+            const progress = tween.getValue();
+            const drawX = inX + (inX - currentX) * progress;
+            const drawY = inY + (inY - currentY) * progress;
+
+            // oozeGraphics.clear();
+            oozeGraphics.lineStyle(8, 0xff0000);
+            oozeGraphics.beginPath();
+            oozeGraphics.moveTo(inX, inY);
+            oozeGraphics.lineTo(drawX, drawY);
+            oozeGraphics.strokePath();
+        }
+
+        const oozeOut = (tween: Phaser.Tweens.Tween, nextDirection: 'top' | 'right' | 'bottom' | 'left' | null, tile: Tile) => {
+             // Draw a line from the center to the exit
+             let outX = tile.x;
+             let outY = tile.y;
+             
+             if (nextDirection === 'top') outY -= 32;
+             if (nextDirection === 'right') outX += 32;
+             if (nextDirection === 'bottom') outY += 32;
+             if (nextDirection === 'left') outX -= 32;
+
+            const progress = tween.getValue();
+            const drawX = tile.x + (outX - tile.x) * progress;
+            const drawY = tile.y + (outY - tile.y) * progress;
+
+            // oozeGraphics.clear();
+            oozeGraphics.lineStyle(8, 0xff0000);
+            oozeGraphics.beginPath();
+            oozeGraphics.moveTo(tile.x, tile.y);
+            oozeGraphics.lineTo(drawX, drawY);
+            oozeGraphics.strokePath();
+
+  
+        }
 
         // Start the animation from the start tile
         animateOoze(startTile, null);
@@ -229,8 +287,8 @@ export class Pipeworks extends Scene {
         const gridPositions: { x: number; y: number }[] = [];
 
         // Generate all valid grid positions (centered within grid squares)
-        for (let x = 192; x <= 832; x += 64) {
-            for (let y = 64; y <= 704; y += 64) {
+        for (let x = 192; x <= 64 * 9; x += 64) {
+            for (let y = 128; y <= 64 * 7; y += 64) {
                 gridPositions.push({ x: x + 32, y: y + 32 }); // Offset by 32 to center within the grid square
             }
         }

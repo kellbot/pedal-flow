@@ -9,8 +9,8 @@ export class Tile extends GameObjects.Container {
 
     static TILE_TYPE_TO_FRAME: Record<TileType, number> = {
         straight: 2,
-        turn: 8,
-        tee: 12,
+        turn: 12,
+        tee: 13,
         crossed: 16,
         blocked: 17,
         start: 4,
@@ -20,10 +20,10 @@ export class Tile extends GameObjects.Container {
     // Define open edges for each tile type and orientation
     static TILE_EDGES: Record<TileType, Record<Orientation, { top: boolean; right: boolean; bottom: boolean; left: boolean }>> = {
         straight: {
-            0: { top: true, right: false, bottom: true, left: false },
-            90: { top: false, right: true, bottom: false, left: true },
-            180: { top: true, right: false, bottom: true, left: false },
-            270: { top: false, right: true, bottom: false, left: true },
+            0: { top: false, right: true, bottom: false, left: true },
+            90: { top: true, right: false, bottom: true, left: false },
+            180: { top: false, right: true, bottom: false, left: true },
+            270: { top: true, right: false, bottom: true, left: false },
         },
         turn: {
             0: { top: true, right: true, bottom: false, left: false },
