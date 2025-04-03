@@ -1,6 +1,8 @@
 import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
 import { Tile, TileType, Orientation } from '../objects/Tile';
+import {  TILE_SIZE, FONT_SETTINGS, OOZE_COLOR, GRID_COLUMNS, GRID_ROWS } from '../constants';
+
 
 export class Pipeworks extends Scene {
     camera: Phaser.Cameras.Scene2D.Camera;
@@ -16,6 +18,9 @@ export class Pipeworks extends Scene {
     tileQueue: { type: TileType; orientation: Orientation }[];
     occupiedPositions: Set<string>; // Track occupied grid positions
 
+    gridOriginX: number; // Store the grid's top-left X coordinate
+    gridOriginY: number; // Store the grid's top-left Y coordinate
+
     constructor() {
         super('Pipeworks');
         this.tileQueue = [];
@@ -28,11 +33,15 @@ export class Pipeworks extends Scene {
 
         // Background
         this.background = this.add.image(512, 384, 'background');
-    
+        this.background.setAlpha(0.5);
 
         // Grid for tile placement
-        this.grid = this.add.grid(512, 384, 64 * 10, 64 * 8, 64, 64, 0x000000, 0, 0xffffff, 0.2);
+        this.grid = this.add.grid(512, 384, TILE_SIZE * GRID_COLUMNS, TILE_SIZE * GRID_ROWS, TILE_SIZE, TILE_SIZE, 0x000000, 0, 0xffffff, 0.2);
         this.grid.setOrigin(0.5);
+
+        // Calculate and store the grid's top-left corner
+        this.gridOriginX = this.grid.x - (TILE_SIZE * GRID_COLUMNS) / 2;
+        this.gridOriginY = this.grid.y - (TILE_SIZE * GRID_ROWS) / 2;
 
         // Generate initial tile queue
         this.generateTileQueue();
@@ -46,28 +55,7 @@ export class Pipeworks extends Scene {
 
         // Enable input on the grid
         this.grid.setInteractive();
-        this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-            const gridX = Math.floor((pointer.x - this.grid.x + 320) / 64) * 64 + this.grid.x - 320 + 32;
-            const gridY = Math.floor((pointer.y - this.grid.y + 320) / 64) * 64 + this.grid.y - 320 + 32;
-
-            const positionKey = `${gridX},${gridY}`; // Create a unique key for the position
-
-            if (gridX >= 192 && gridX <= 832 && gridY >= 64 && gridY <= 704) {
-                if (!this.occupiedPositions.has(positionKey)) { // Check if the position is unoccupied
-                    if (this.tileQueue.length > 0) {
-                        const nextTile = this.tileQueue.shift(); // Get the next tile from the queue
-                        if (nextTile) {
-                            new Tile(this, gridX, gridY, nextTile.type, nextTile.orientation);
-                            this.occupiedPositions.add(positionKey); // Mark the position as occupied
-                            this.generateTileQueue(); // Replenish the queue if needed
-                            this.updateTilePreview(); // Update the preview area
-                        }
-                    }
-                } else {
-                    console.log('Position already occupied!'); // Debug message
-                }
-            }
-        });
+        this.input.on('pointerdown', this.handlePointerDown, this);
 
         let fontSettings = {
             fontSize: '26px',
@@ -98,6 +86,36 @@ export class Pipeworks extends Scene {
         EventBus.emit('current-scene-ready', this);
     }
 
+    handlePointerDown(pointer: Phaser.Input.Pointer) {
+        // Calculate the tile's position relative to the grid
+        const gridX = Math.floor((pointer.x - this.gridOriginX) / TILE_SIZE) * TILE_SIZE + this.gridOriginX + TILE_SIZE / 2;
+        const gridY = Math.floor((pointer.y - this.gridOriginY) / TILE_SIZE) * TILE_SIZE + this.gridOriginY + TILE_SIZE / 2;
+
+        const positionKey = `${gridX},${gridY}`; // Create a unique key for the position
+
+        // Ensure the tile is within the grid bounds
+        if (
+            gridX >= this.gridOriginX + TILE_SIZE / 2 &&
+            gridX <= this.gridOriginX + TILE_SIZE * GRID_COLUMNS - TILE_SIZE / 2 &&
+            gridY >= this.gridOriginY + TILE_SIZE / 2 &&
+            gridY <= this.gridOriginY + TILE_SIZE * GRID_ROWS - TILE_SIZE / 2
+        ) {
+            if (!this.occupiedPositions.has(positionKey)) { // Check if the position is unoccupied
+                if (this.tileQueue.length > 0) {
+                    const nextTile = this.tileQueue.shift(); // Get the next tile from the queue
+                    if (nextTile) {
+                        new Tile(this, gridX, gridY, nextTile.type, nextTile.orientation);
+                        this.occupiedPositions.add(positionKey); // Mark the position as occupied
+                        this.generateTileQueue(); // Replenish the queue if needed
+                        this.updateTilePreview(); // Update the preview area
+                    }
+                }
+            } else {
+                console.log('Position already occupied!'); // Debug message
+            }
+        }
+    }
+
     generateTileQueue() {
         while (this.tileQueue.length < 5) {
             const tileTypes: TileType[] = ['straight', 'turn', 'crossed'];
@@ -112,14 +130,14 @@ export class Pipeworks extends Scene {
         this.tileQueue.forEach((tile, index) => {
             const previewTile = this.add.container(0, index * 70);
 
-            // Add the sprite image for the tile
-            const tileImage = this.add.sprite(0, 0, 'roads', Tile.TILE_TYPE_TO_FRAME[tile.type]);
-            tileImage.setRotation(Phaser.Math.DegToRad(tile.orientation));
+            // Use the Tile.createSprite method to create the sprite
+            const tileSprite = Tile.createSprite(this, tile.type, tile.orientation);
 
-            previewTile.add(tileImage);
+            previewTile.add(tileSprite);
             this.upcomingTiles.add(previewTile);
         });
     }
+
     updateCountdown() {
         this.countdown -= 1;
         this.countdownText.setText(`Time: ${this.countdown}`);
@@ -143,136 +161,64 @@ export class Pipeworks extends Scene {
             return;
         }
 
-        // Create a graphics object for the ooze
-        const oozeGraphics = this.add.graphics({ lineStyle: { width: 8, color: 0xff0000 } });
-        // Ensure the graphics object is always on top
-        this.children.bringToTop(oozeGraphics);
-
-        // Start drawing the ooze from the start tile
-        let currentX = startTile.x;
-        let currentY = startTile.y;
-
         // Recursive function to animate the ooze
         const animateOoze = (currentTile: Tile, previousDirection: 'top' | 'right' | 'bottom' | 'left' | null) => {
-            console.log("Animating ooze from", currentTile.type ," tile at:", currentTile.x, currentTile.y, "with previous direction:", previousDirection);
+            console.log("Animating ooze from tile at:", currentTile.x, currentTile.y, "with type:", currentTile.type, "orientation:", currentTile.orientation, "and previous direction:", previousDirection);
 
-            const edges = Tile.TILE_EDGES[currentTile.type][currentTile.orientation];
+            // Trigger the animation for the current tile
+            currentTile.animate(this, previousDirection);
 
-            // Determine the next direction based on the open edges
-            const directions = ['top', 'right', 'bottom', 'left'] as const;
-            const oppositeDirection: Record<typeof directions[number], typeof directions[number]> = {
-                top: 'bottom',
-                right: 'left',
-                bottom: 'top',
-                left: 'right',
-            };
-            console.log(edges);
+            // Wait for the current tile's animation to complete before determining the next tile
+            this.time.delayedCall(1000, () => {
+                const edges = Tile.TILE_EDGES[currentTile.type][currentTile.orientation];
 
-            for (const direction of directions) {
-                if (edges[direction] && (!previousDirection || !edges[oppositeDirection[previousDirection]] || direction === oppositeDirection[previousDirection])) {
-                    console.log("Exit direction", direction);
-                    // Calculate the next tile position
-                    let nextX = currentTile.x;
-                    let nextY = currentTile.y;
+                // Determine the next direction based on the open edges
+                const directions = ['top', 'right', 'bottom', 'left'] as const;
+                const oppositeDirection: Record<typeof directions[number], typeof directions[number]> = {
+                    top: 'bottom',
+                    right: 'left',
+                    bottom: 'top',
+                    left: 'right',
+                };
 
-                    if (direction === 'top') nextY -= 64;
-                    if (direction === 'right') nextX += 64;
-                    if (direction === 'bottom') nextY += 64;
-                    if (direction === 'left') nextX -= 64;
+                for (const direction of directions) {
+                    if (edges[direction] && // this edge is open
+                    direction !== previousDirection && // not coming from where we just were
+                    ( //this is the opposite direction OR the opposite edge of the previous direction is not open OR we had no previous direction
+                        !previousDirection ||
+                        (previousDirection && direction === oppositeDirection[previousDirection]) || 
+                        (previousDirection && !edges[oppositeDirection[previousDirection]]) 
+                    )
+                 ) {
 
-                    // Find the next tile
-                    const nextTile = this.children.getAll().find(
-                        (child) =>
-                            child instanceof Tile &&
-                            child.x === nextX &&
-                            child.y === nextY
-                    ) as Tile;
+                    console.log(`Coming from ${previousDirection} and Following direction: ${direction} from tile at (${currentTile.x}, ${currentTile.y})`);
+                    
+                        // Calculate the next tile position
+                        let nextX = currentTile.x;
+                        let nextY = currentTile.y;
 
-                    if (previousDirection){
-                        this.tweens.add({
-                            targets: { progress: 0 },
-                            progress: 1,
-                            duration: 3 * 1000,
-                            onUpdate: (tween) => oozeIn(tween, previousDirection, currentTile),
-                            onComplete: () => {
-                                this.tweens.add({
-                                    targets: { progress: 0 },
-                                    progress: 1,
-                                    duration: 3 * 1000,
-                                    onUpdate: (tween2) => oozeOut(tween2, direction, currentTile),
-                                    onComplete: () => {
-                                        if (nextTile) {
-                                            animateOoze(nextTile, oppositeDirection[direction]);
-                                        }
-                                    }
-                                })
-                            }
-                            
-                        });
-                    } else {
-                        this.tweens.add({
-                            targets: { progress: 0 },
-                            progress: 1,
-                            duration: 3 * 1000,
-                            onUpdate:(tween3) => oozeOut(tween3, direction, currentTile),
-                            onComplete: () => {
-                                if (nextTile) {
-                                    animateOoze(nextTile, oppositeDirection[direction]);
-                                }
-                            }
-                            
-                        });
+                        if (direction === 'top') nextY -= TILE_SIZE;
+                        if (direction === 'right') nextX += TILE_SIZE;
+                        if (direction === 'bottom') nextY += TILE_SIZE;
+                        if (direction === 'left') nextX -= TILE_SIZE;
+
+                        // Dynamically find the next tile after the animation completes
+                        const nextTile = this.children.getAll().find(
+                            (child) =>
+                                child instanceof Tile &&
+                                child.x === nextX &&
+                                child.y === nextY
+                        ) as Tile;
+
+                        if (nextTile) {
+                            // Continue the animation with the next tile
+                            animateOoze(nextTile, oppositeDirection[direction]);
+                        }
+                        break;
                     }
-   
-                    break;
                 }
-            }
+            });
         };
-
-        const oozeIn = (tween: Phaser.Tweens.Tween, previousDirection: 'top' | 'right' | 'bottom' | 'left' | null, tile: Tile) => {
-            let inY = tile.y;
-            let inX = tile.x;
-        
-            if (previousDirection === 'top') inY -= 32;
-            if (previousDirection === 'right') inX += 32;
-            if (previousDirection === 'bottom') inY += 32;
-            if (previousDirection === 'left') inX -= 32;
-
-            const progress = tween.getValue();
-            const drawX = inX + (inX - currentX) * progress;
-            const drawY = inY + (inY - currentY) * progress;
-
-            // oozeGraphics.clear();
-            oozeGraphics.lineStyle(8, 0xff0000);
-            oozeGraphics.beginPath();
-            oozeGraphics.moveTo(inX, inY);
-            oozeGraphics.lineTo(drawX, drawY);
-            oozeGraphics.strokePath();
-        }
-
-        const oozeOut = (tween: Phaser.Tweens.Tween, nextDirection: 'top' | 'right' | 'bottom' | 'left' | null, tile: Tile) => {
-             // Draw a line from the center to the exit
-             let outX = tile.x;
-             let outY = tile.y;
-             
-             if (nextDirection === 'top') outY -= 32;
-             if (nextDirection === 'right') outX += 32;
-             if (nextDirection === 'bottom') outY += 32;
-             if (nextDirection === 'left') outX -= 32;
-
-            const progress = tween.getValue();
-            const drawX = tile.x + (outX - tile.x) * progress;
-            const drawY = tile.y + (outY - tile.y) * progress;
-
-            // oozeGraphics.clear();
-            oozeGraphics.lineStyle(8, 0xff0000);
-            oozeGraphics.beginPath();
-            oozeGraphics.moveTo(tile.x, tile.y);
-            oozeGraphics.lineTo(drawX, drawY);
-            oozeGraphics.strokePath();
-
-  
-        }
 
         // Start the animation from the start tile
         animateOoze(startTile, null);
@@ -287,19 +233,19 @@ export class Pipeworks extends Scene {
         const gridPositions: { x: number; y: number }[] = [];
 
         // Generate all valid grid positions (centered within grid squares)
-        for (let x = 192; x <= 64 * 9; x += 64) {
-            for (let y = 128; y <= 64 * 7; y += 64) {
-                gridPositions.push({ x: x + 32, y: y + 32 }); // Offset by 32 to center within the grid square
+        for (let x = this.gridOriginX; x < this.gridOriginX + TILE_SIZE * GRID_COLUMNS; x += TILE_SIZE) {
+            for (let y = this.gridOriginY; y < this.gridOriginY + TILE_SIZE * GRID_ROWS; y += TILE_SIZE) {
+                gridPositions.push({ x: x + TILE_SIZE / 2, y: y + TILE_SIZE / 2 }); // Offset by TILE_SIZE / 2 to center within the grid square
             }
         }
 
         // Helper function to determine valid orientations
         const getValidOrientations = (x: number, y: number): Orientation[] => {
             const orientations: Orientation[] = [];
-            if (y > 64) orientations.push(0); // Open side facing up
-            if (x < 832) orientations.push(90); // Open side facing right
-            if (y < 704) orientations.push(180); // Open side facing down
-            if (x > 192) orientations.push(270); // Open side facing left
+            if (y > this.gridOriginY) orientations.push(0); // Open side facing up
+            if (x < this.gridOriginX + TILE_SIZE * (GRID_COLUMNS - 1)) orientations.push(90); // Open side facing right
+            if (y < this.gridOriginY + TILE_SIZE * (GRID_ROWS - 1)) orientations.push(180); // Open side facing down
+            if (x > this.gridOriginX) orientations.push(270); // Open side facing left
             return orientations;
         };
 

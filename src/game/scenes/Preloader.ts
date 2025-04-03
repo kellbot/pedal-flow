@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { TILE_SIZE } from '../constants';
 
 export class Preloader extends Scene {
     constructor() {
@@ -33,10 +34,18 @@ export class Preloader extends Scene {
 
         // Preload the roads2W sprite sheet
         this.load.spritesheet('roads', 'roads2W.png', {
-            frameWidth: 64, // Width of each frame
-            frameHeight: 64, // Height of each frame
+            frameWidth: TILE_SIZE, // Width of each frame
+            frameHeight: TILE_SIZE, // Height of each frame
             startFrame: 0,
             endFrame: 26 // Total frames (9 columns * 3 rows = 27 frames)
+        });
+
+         // Preload the roads2W sprite sheet
+         this.load.spritesheet('pipes', 'pipe-animations.png', {
+            frameWidth: TILE_SIZE, // Width of each frame
+            frameHeight: TILE_SIZE, // Height of each frame
+            startFrame: 0,
+            endFrame: 26 * 26 // Total frames (9 columns * 3 rows = 27 frames)
         });
     }
 
